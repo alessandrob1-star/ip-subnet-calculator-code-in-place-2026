@@ -1,6 +1,6 @@
 # IP Subnet Calculator
 
-**Final Project** for Stanford Code in Place
+**Final Project** for Stanford Code in Place 2026
 
 ## Author
 **Alessandro Benevelli**
@@ -9,7 +9,7 @@
 [Watch the demo on YouTube](https://youtu.be/5RuhGwCnxY8)
 
 ## Description
-A graphical IPv4 Subnet Calculator built with Python and Tkinter.
+My version of a graphical IPv4 Subnet Calculator built with Python and Tkinter.
 
 The goal of this project is to help users calculate subnet information, divide networks into smaller subnets, and better understand IPv4 subnetting concepts.
 
