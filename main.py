@@ -30,6 +30,15 @@ import webbrowser
 
 
 MAX_SUBNETS_TO_DISPLAY = 1024
+PRIVATE_IPV4_NETWORKS = tuple(
+    ipaddress.ip_network(cidr)
+    for cidr in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+)
+SHARED_IPV4_NETWORK = ipaddress.ip_network("100.64.0.0/10")
+DOCUMENTATION_IPV4_NETWORKS = tuple(
+    ipaddress.ip_network(cidr)
+    for cidr in ("192.0.2.0/24", "198.51.100.0/24", "203.0.113.0/24")
+)
 
 
 def get_default_prefix(ip_str: str) -> int:
@@ -85,6 +94,29 @@ def get_ip_class(ip_str: str) -> str:
         return "?"
     except:
         return "?"
+
+
+def get_network_scope(network: ipaddress.IPv4Network) -> str:
+    """Describe the routing scope of an IPv4 network."""
+    if any(network.subnet_of(private) for private in PRIVATE_IPV4_NETWORKS):
+        return "Private (RFC 1918)"
+    if network.subnet_of(SHARED_IPV4_NETWORK):
+        return "Shared Address Space (CGNAT)"
+    if any(network.subnet_of(test_net) for test_net in DOCUMENTATION_IPV4_NETWORKS):
+        return "Documentation (TEST-NET)"
+    if network.is_loopback:
+        return "Loopback"
+    if network.is_link_local:
+        return "Link-local"
+    if network.is_multicast:
+        return "Multicast"
+    if network.is_unspecified:
+        return "Unspecified"
+    if network.is_reserved:
+        return "Reserved"
+    if network.is_global:
+        return "Public (globally routable)"
+    return "Special-use / Non-global"
 
 
 def ip_to_binary(ip_address) -> str:
@@ -255,7 +287,7 @@ class SubnetCalculatorGUI:
             if network.num_addresses > 2:
                 result += f"Host Range:          {network.network_address + 1} — {network.broadcast_address - 1}\n"
 
-            result += f"Type:                {'Private' if network.is_private else 'Public'}\n"
+            result += f"Address Scope:       {get_network_scope(network)}\n"
 
             self.result_text1.insert(tk.END, result)
 
