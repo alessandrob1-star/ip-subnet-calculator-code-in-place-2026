@@ -46,6 +46,22 @@ class UsableHostTests(unittest.TestCase):
         self.assertIn("1 usable host", slash_32)
         self.assertIn("Single-host route", slash_32)
 
+    def test_subnet_split_lists_only_usable_host_ranges(self):
+        gui = object.__new__(SubnetCalculatorGUI)
+
+        standard = gui.explain_subnet_split(
+            ipaddress.ip_network("192.168.0.0/24"),
+            4,
+        )
+        point_to_point = gui.explain_subnet_split(
+            ipaddress.ip_network("192.168.0.0/29"),
+            4,
+        )
+
+        self.assertIn("range: 192.168.0.1 - 192.168.0.62", standard)
+        self.assertNotIn("range: 192.168.0.0 - 192.168.0.63", standard)
+        self.assertIn("hosts: 2 | range: 192.168.0.0 - 192.168.0.1", point_to_point)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -670,9 +670,9 @@ class SubnetCalculatorGUI:
         subnets = list(islice(network.subnets(new_prefix=new_prefix), 4))
         first_lines = []
         for index, subnet in enumerate(subnets, 1):
-            usable = max(0, subnet.num_addresses - 2)
+            usable, first_host, last_host, _ = get_usable_host_info(subnet)
             first_lines.append(
-                f"{index}. {subnet} | hosts: {usable:,} | range: {subnet.network_address} - {subnet.broadcast_address}"
+                f"{index}. {subnet} | hosts: {usable:,} | range: {first_host} - {last_host}"
             )
 
         extra = ""
