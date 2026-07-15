@@ -22,10 +22,14 @@ import os
 import re
 import threading
 import tkinter as tk
+from itertools import islice
 from tkinter import ttk, messagebox, scrolledtext
 import urllib.error
 import urllib.request
 import webbrowser
+
+
+MAX_SUBNETS_TO_DISPLAY = 1024
 
 
 def get_default_prefix(ip_str: str) -> int:
@@ -294,6 +298,13 @@ class SubnetCalculatorGUI:
                     "(for example: 2, 4, 8, or 16)."
                 )
                 return
+            if num_subnets > MAX_SUBNETS_TO_DISPLAY:
+                messagebox.showerror(
+                    "Error",
+                    f"This app can display at most {MAX_SUBNETS_TO_DISPLAY:,} subnets at once. "
+                    "Choose fewer subnets to keep the interface responsive."
+                )
+                return
 
             # Calculate how many extra bits are needed for the requested subnets.
             # Example: 8 subnets need 3 bits, because 2^3 = 8.
@@ -308,10 +319,10 @@ class SubnetCalculatorGUI:
             result += f"Original IP Class: Class {ip_class}\n"
             result += "="*90 + "\n\n"
 
-            # The ipaddress module generates the subnet objects for us.
-            subnets = list(network.subnets(new_prefix=new_prefix))
+            # Iterate lazily so subnet objects are not all stored in memory at once.
+            subnets = network.subnets(new_prefix=new_prefix)
 
-            for i, subnet in enumerate(subnets[:num_subnets], 1):
+            for i, subnet in enumerate(subnets, 1):
                 # In normal IPv4 subnetting, network and broadcast are not usable hosts.
                 usable = max(0, subnet.num_addresses - 2)
                 result += f"Subnet {i}\n"
@@ -596,10 +607,10 @@ class SubnetCalculatorGUI:
         if new_prefix > 32:
             return f"{network} cannot be divided into {subnet_count} IPv4 subnets."
 
-        # Generate only the requested number of subnets.
-        subnets = list(network.subnets(new_prefix=new_prefix))[:subnet_count]
+        # The tutor shows at most four examples, so generate only those subnet objects.
+        subnets = list(islice(network.subnets(new_prefix=new_prefix), 4))
         first_lines = []
-        for index, subnet in enumerate(subnets[:4], 1):
+        for index, subnet in enumerate(subnets, 1):
             usable = max(0, subnet.num_addresses - 2)
             first_lines.append(
                 f"{index}. {subnet} | hosts: {usable:,} | range: {subnet.network_address} - {subnet.broadcast_address}"
