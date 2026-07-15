@@ -389,13 +389,18 @@ class SubnetCalculatorGUI:
         thread.start()
 
     def answer_chat_question(self, question):
-        # First try the online AI API.
-        answer = self.get_online_ai_response(question)
-        if not answer:
-            # If there is no API key, no internet, or an API error, use the offline tutor.
-            answer = self.get_local_ai_response(question)
+        answer = self.build_chat_answer(question)
         # Tkinter widgets must be updated from the main GUI thread.
         self.root.after(0, lambda: self.replace_last_chat_message("AI Tutor", answer))
+
+    def build_chat_answer(self, question):
+        """Build an answer that clearly identifies its online or offline source."""
+        online_answer, fallback_reason = self.get_online_ai_response(question)
+        if online_answer:
+            return f"Mode: Online AI\n\n{online_answer}"
+
+        offline_answer = self.get_local_ai_response(question)
+        return f"Mode: Offline tutor ({fallback_reason})\n\n{offline_answer}"
 
     def add_chat_message(self, speaker, message):
         # Temporarily enable the chat box so the program can insert text.
@@ -432,7 +437,7 @@ class SubnetCalculatorGUI:
         # This avoids saving a private key directly inside the code.
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            return None
+            return None, "OPENAI_API_KEY is not configured"
 
         # Message sent to the online AI model.
         payload = {
@@ -466,10 +471,14 @@ class SubnetCalculatorGUI:
         try:
             with urllib.request.urlopen(request, timeout=20) as response:
                 data = json.loads(response.read().decode("utf-8"))
-                return data["choices"][0]["message"]["content"].strip()
-        except (urllib.error.URLError, urllib.error.HTTPError, KeyError, IndexError, json.JSONDecodeError):
-            # Return None so the program can safely use the offline fallback.
-            return None
+                answer = data["choices"][0]["message"]["content"].strip()
+                return answer, None
+        except urllib.error.HTTPError as error:
+            return None, f"OpenAI API returned HTTP {error.code}"
+        except urllib.error.URLError:
+            return None, "OpenAI API is unavailable"
+        except (KeyError, IndexError, json.JSONDecodeError):
+            return None, "OpenAI API returned an invalid response"
 
     def get_local_ai_response(self, question):
         # Offline chatbot logic.
