@@ -158,6 +158,16 @@ def is_power_of_two(value: int) -> bool:
     return value > 0 and (value & (value - 1)) == 0
 
 
+def get_chat_message_replacement(content, speaker, request_id, message):
+    """Locate the exact pending chat message associated with one request."""
+    placeholder = f"{speaker}: Thinking... (request #{request_id})\n\n"
+    index = content.find(placeholder)
+    if index == -1:
+        return None
+    replacement = f"{speaker}: {message}\n\n"
+    return index, len(placeholder), replacement
+
+
 class SubnetCalculatorGUI:
     def __init__(self):
         # Create the main Tkinter window.
@@ -254,6 +264,7 @@ class SubnetCalculatorGUI:
 
     def create_chatbot_tab(self):
         # Build the user interface for the chatbot tab.
+        self.next_chat_request_id = 1
         frame = ttk.Frame(self.tab3, padding=15)
         frame.pack(fill="both", expand=True)
 
@@ -409,19 +420,28 @@ class SubnetCalculatorGUI:
             return
 
         # Show the user's message immediately.
+        request_id = self.next_chat_request_id
+        self.next_chat_request_id += 1
         self.chat_entry.delete(0, tk.END)
         self.add_chat_message("You", question)
-        self.add_chat_message("AI Tutor", "Thinking...")
+        self.add_chat_message("AI Tutor", f"Thinking... (request #{request_id})")
 
         # Run the chatbot answer in a background thread.
         # This prevents the Tkinter window from freezing while waiting.
-        thread = threading.Thread(target=self.answer_chat_question, args=(question,), daemon=True)
+        thread = threading.Thread(
+            target=self.answer_chat_question,
+            args=(question, request_id),
+            daemon=True,
+        )
         thread.start()
 
-    def answer_chat_question(self, question):
+    def answer_chat_question(self, question, request_id):
         answer = self.build_chat_answer(question)
         # Tkinter widgets must be updated from the main GUI thread.
-        self.root.after(0, lambda: self.replace_last_chat_message("AI Tutor", answer))
+        self.root.after(
+            0,
+            lambda: self.replace_pending_chat_message("AI Tutor", request_id, answer),
+        )
 
     def build_chat_answer(self, question):
         """Build an answer that clearly identifies its online or offline source."""
@@ -439,19 +459,21 @@ class SubnetCalculatorGUI:
         self.chat_text.see(tk.END)
         self.chat_text.configure(state="disabled")
 
-    def replace_last_chat_message(self, speaker, message):
+    def replace_pending_chat_message(self, speaker, request_id, message):
         self.chat_text.configure(state="normal")
         content = self.chat_text.get("1.0", tk.END)
-        placeholder = f"{speaker}: Thinking...\n\n"
-        index = content.rfind(placeholder)
-        if index != -1:
-            # Replace the temporary "Thinking..." message with the real answer.
+        replacement = get_chat_message_replacement(
+            content,
+            speaker,
+            request_id,
+            message,
+        )
+        if replacement is not None:
+            index, placeholder_length, replacement_text = replacement
             start = f"1.0+{index}c"
-            end = f"1.0+{index + len(placeholder)}c"
+            end = f"1.0+{index + placeholder_length}c"
             self.chat_text.delete(start, end)
-            self.chat_text.insert(start, f"{speaker}: {message}\n\n")
-        else:
-            self.chat_text.insert(tk.END, f"{speaker}: {message}\n\n")
+            self.chat_text.insert(start, replacement_text)
         self.chat_text.see(tk.END)
         self.chat_text.configure(state="disabled")
 
