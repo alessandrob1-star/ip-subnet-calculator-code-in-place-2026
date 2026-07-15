@@ -22,12 +22,11 @@ import os
 import re
 import threading
 import tkinter as tk
-from itertools import islice
-from tkinter import ttk, messagebox, scrolledtext
 import urllib.error
 import urllib.request
 import webbrowser
-
+from itertools import islice
+from tkinter import messagebox, scrolledtext, ttk
 
 MAX_SUBNETS_TO_DISPLAY = 1024
 PRIVATE_IPV4_NETWORKS = tuple(
@@ -70,7 +69,7 @@ def get_default_prefix(ip_str: str) -> int:
             return 24
         else:
             return 32
-    except:
+    except (AttributeError, ValueError):
         return 24
 
 
@@ -100,7 +99,7 @@ def get_ip_class(ip_str: str) -> str:
         elif 240 <= first <= 255:
             return "E"
         return "?"
-    except:
+    except (AttributeError, ValueError):
         return "?"
 
 
