@@ -119,6 +119,26 @@ def get_network_scope(network: ipaddress.IPv4Network) -> str:
     return "Special-use / Non-global"
 
 
+def get_usable_host_info(network: ipaddress.IPv4Network):
+    """Return usable host count, range endpoints, and the rule being applied."""
+    if network.prefixlen == 32:
+        address = network.network_address
+        return 1, address, address, "Single-host route"
+    if network.prefixlen == 31:
+        return (
+            2,
+            network.network_address,
+            network.broadcast_address,
+            "RFC 3021 point-to-point",
+        )
+    return (
+        max(0, network.num_addresses - 2),
+        network.network_address + 1,
+        network.broadcast_address - 1,
+        "Total - 2",
+    )
+
+
 def ip_to_binary(ip_address) -> str:
     """Convert IP address to binary format."""
     # Each IPv4 octet is shown as 8 bits, because IPv4 addresses are 32 bits total.
@@ -272,6 +292,7 @@ class SubnetCalculatorGUI:
             # Python converts them to the correct network: 192.168.1.0/24.
             network = ipaddress.ip_network(ip_input, strict=False)
             ip_class = get_ip_class(str(network.network_address))
+            usable_hosts, first_host, last_host, host_rule = get_usable_host_info(network)
 
             # Build the output text step by step.
             result = f"Results for → {network}{detected}\n"
@@ -282,10 +303,11 @@ class SubnetCalculatorGUI:
             result += f"                     {ip_to_binary(network.netmask)}\n"
             result += f"IP Class:            Class {ip_class}\n"
             result += f"Total IP Addresses:  {network.num_addresses:,}\n"
-            result += f"Usable Hosts:        {max(0, network.num_addresses - 2):,}   (Total - 2)\n"
-
-            if network.num_addresses > 2:
-                result += f"Host Range:          {network.network_address + 1} — {network.broadcast_address - 1}\n"
+            result += f"Usable Hosts:        {usable_hosts:,}   ({host_rule})\n"
+            if first_host == last_host:
+                result += f"Host Address:        {first_host}\n"
+            else:
+                result += f"Host Range:          {first_host} — {last_host}\n"
 
             result += f"Address Scope:       {get_network_scope(network)}\n"
 
@@ -488,26 +510,31 @@ class SubnetCalculatorGUI:
 
         # Example: "What is the network ID of 192.168.1.25/24?"
         if network:
-            usable_hosts = max(0, network.num_addresses - 2)
-            host_range = "No usable host range for this very small subnet."
-            if network.num_addresses > 2:
-                host_range = f"The usable host range is {network.network_address + 1} to {network.broadcast_address - 1}."
+            usable_hosts, first_host, last_host, host_rule = get_usable_host_info(network)
+            host_label = "host" if usable_hosts == 1 else "hosts"
+            if first_host == last_host:
+                host_range = f"The host address is {first_host}."
+            else:
+                host_range = f"The usable host range is {first_host} to {last_host}."
 
             return (
                 f"For {network}, the network ID is {network.network_address}, "
                 f"the broadcast address is {network.broadcast_address}, and the subnet mask is {network.netmask}. "
-                f"It contains {network.num_addresses:,} total addresses and {usable_hosts:,} usable hosts. "
+                f"It contains {network.num_addresses:,} total addresses and {usable_hosts:,} usable {host_label} "
+                f"using the {host_rule} rule. "
                 f"{host_range}"
             )
 
         # Example: "How many hosts are in /26?"
         if prefix is not None and self.has_any(text, ["host", "usable", "utilizzabili", "dispositivi", "indirizzi"]):
             total_addresses = 2 ** (32 - prefix)
-            usable_hosts = max(0, total_addresses - 2)
+            prefix_network = ipaddress.ip_network(f"0.0.0.0/{prefix}")
+            usable_hosts, _, _, host_rule = get_usable_host_info(prefix_network)
+            host_label = "host" if usable_hosts == 1 else "hosts"
             return (
                 f"A /{prefix} network has {32 - prefix} host bits. "
                 f"That gives 2^{32 - prefix} = {total_addresses:,} total addresses and "
-                f"{usable_hosts:,} usable hosts in normal IPv4 subnetting."
+                f"{usable_hosts:,} usable {host_label} using the {host_rule} rule."
             )
 
         # Example: "What subnet mask is /27?"
