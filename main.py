@@ -89,6 +89,11 @@ def ip_to_binary(ip_address) -> str:
     return '.'.join(f'{int(octet):08b}' for octet in str(ip_address).split('.'))
 
 
+def is_power_of_two(value: int) -> bool:
+    """Return True when value is a positive power of two."""
+    return value > 0 and (value & (value - 1)) == 0
+
+
 class SubnetCalculatorGUI:
     def __init__(self):
         # Create the main Tkinter window.
@@ -281,6 +286,13 @@ class SubnetCalculatorGUI:
                 return
             if num_subnets < 2:
                 messagebox.showerror("Error", "You must enter at least 2 subnets.")
+                return
+            if not is_power_of_two(num_subnets):
+                messagebox.showerror(
+                    "Error",
+                    "For equal-size subnetting, the number of subnets must be a power of 2 "
+                    "(for example: 2, 4, 8, or 16)."
+                )
                 return
 
             # Calculate how many extra bits are needed for the requested subnets.
@@ -570,6 +582,11 @@ class SubnetCalculatorGUI:
         # Explain subnetting step by step for chatbot answers.
         if subnet_count < 2:
             return "To subnet a network, choose at least 2 subnets."
+        if not is_power_of_two(subnet_count):
+            return (
+                "Equal-size IPv4 subnetting requires a power-of-two subnet count. "
+                "Choose 2, 4, 8, 16, or another power of two."
+            )
         if network.prefixlen >= 30:
             return "This network is too small to divide into useful IPv4 subnets."
 
