@@ -74,6 +74,14 @@ def get_default_prefix(ip_str: str) -> int:
         return 24
 
 
+def parse_ipv4_network(value: str) -> ipaddress.IPv4Network:
+    """Parse an IPv4 network and reject otherwise valid IPv6 input explicitly."""
+    network = ipaddress.ip_network(value, strict=False)
+    if network.version != 4:
+        raise ValueError("This calculator supports IPv4 addresses only.")
+    return network
+
+
 def get_ip_class(ip_str: str) -> str:
     """Return the IP Class (A, B, C, D, E)."""
     try:
@@ -290,7 +298,7 @@ class SubnetCalculatorGUI:
 
             # strict=False allows host addresses such as 192.168.1.25/24.
             # Python converts them to the correct network: 192.168.1.0/24.
-            network = ipaddress.ip_network(ip_input, strict=False)
+            network = parse_ipv4_network(ip_input)
             ip_class = get_ip_class(str(network.network_address))
             usable_hosts, first_host, last_host, host_rule = get_usable_host_info(network)
 
@@ -335,7 +343,7 @@ class SubnetCalculatorGUI:
                 prefix = get_default_prefix(ip_input)
                 ip_input += f"/{prefix}"
 
-            network = ipaddress.ip_network(ip_input, strict=False)
+            network = parse_ipv4_network(ip_input)
             ip_class = get_ip_class(str(network.network_address))
 
             # Very small networks do not have enough room for useful subnetting.
